@@ -1,12 +1,12 @@
-#!/usr/bin/env python3
-from __future__ import print_function
-import requests
-import json
-import time
-import sys
-import base64
+
+import rpc_pb2_grpc
+import rpc_pb2
+import grpc
 import jsonpickle
+import base64
+import time
 import random
+import sys
 
 def create100Vector():
     vector = []
@@ -15,52 +15,31 @@ def create100Vector():
     return vector
 
 def doRawImage(addr, debug=True):
-    # prepare headers for http request
-    headers = {'content-type': 'image/png'}
     img = open('Flatirons_Winter_Sunrise_edit_2.jpg', 'rb').read()
-    # send http request with image and receive response
-    image_url = addr + '/api/rawimage'
-    response = requests.post(image_url, data=img, headers=headers)
+    data = rpc_pb2.rawImageMsg(img=img)
+    feature = stub.rawImage(data)
     if debug:
-        # decode response
-        print("Response is", response)
-        print(json.loads(response.text)) # {'width': 3004, 'height': 1002}
+        print(feature)
 
 def doAdd(addr, debug=False, a=5, b=10):
-    headers = {'content-type': 'application/json'}
-    # send http request with image and receive response
-    add_url = addr + f"/api/add/{a}/{b}"
-    response = requests.post(add_url, headers=headers)
+    feature = stub.add(rpc_pb2.addMsg(a=a,b=b))
     if debug:
-        # decode response
-        print("Response is", response)
-        print(json.loads(response.text))
+        print(feature)
 
 def doDotProduct(addr, debug=False):
     a = create100Vector()
     b = create100Vector()
-    headers = {'content-type': 'application/json'}
-    dot_product_url = addr + "/api/dotproduct"
-    data = {'a': a,
-            'b': b}
-    data = jsonpickle.encode(data)
-    response = requests.post(dot_product_url, data=data, headers=headers)
+    feature = stub.dotProduct(rpc_pb2.dotProductMsg(a=a, b=b))
     if debug:
-        # decode response
-        print("Response is", response)
-        print(json.loads(response.text))
+        print(feature)
 
 def doJsonImage(addr, debug=False):
-    headers = {'content-type': 'application/json',}
-    json_image_url = addr + "/api/jsonimage"
     img = open('Flatirons_Winter_Sunrise_edit_2.jpg', 'rb').read()
     img = base64.b64encode(img)
     img = jsonpickle.encode(img)
-    response = requests.post(json_image_url, data=img, headers=headers)
+    feature = stub.jsonImage(rpc_pb2.jsonImageMsg(img=img))
     if debug:
-        # decode response
-        print("Response is", response)
-        print(json.loads(response.text))
+        print(feature)
 
 if len(sys.argv) < 3:
     print(f"Usage: {sys.argv[0]} <server ip> <cmd> <reps>")
@@ -71,7 +50,9 @@ host = sys.argv[1]
 cmd = sys.argv[2]
 reps = int(sys.argv[3])
 
-addr = f"http://{host}:2222"
+addr = f"{host}:2222"
+channel = grpc.insecure_channel(f"{host}:2222")
+stub = rpc_pb2_grpc.RouteGuideStub(channel)
 print(f"Running {reps} reps against {addr}")
 
 if cmd == 'rawImage':
